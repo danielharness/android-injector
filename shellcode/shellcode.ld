@@ -19,4 +19,9 @@ SECTIONS
         *(.rodata.*)
         *(.data)
     }
+
+    .debug :
+    {
+        *(.ARM.exidx)
+    }
 }

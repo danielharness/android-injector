@@ -30,6 +30,9 @@ fn build_shellcode(target: &str) -> PathBuf {
     let shellcode_raw = target_dir.join("shellcode.bin");
     assert!(Command::new("strip")
         .arg("-s")
+        .arg("--strip-unneeded")
+        .arg("-x")
+        .arg("-X")
         .arg("-o")
         .arg(&shellcode_stripped)
         .arg(&shellcode_binary)
