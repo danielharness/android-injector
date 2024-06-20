@@ -38,7 +38,6 @@ impl Debug for RemoteAddress {
     }
 }
 
-// TODO: Examples
 /// Represents a process traced using `ptrace`.
 /// The traced process is referred to as the "tracee", and the tracing process as the "tracer".
 ///
