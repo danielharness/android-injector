@@ -7,7 +7,7 @@ pub mod ptrace;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InjectorError {
-    #[error("Error in `ptrace` call for tracee pid {1}: `{0}`")]
+    #[error("Error in `ptrace` call for tracee pid {1}: `{0}`")] // TODO: Include `PtraceRequest`
     Ptrace(#[source] std::io::Error, libc::pid_t),
     #[error("Tracee pid {0} exited during `ptrace`")] // TODO: Include `ExitReason`
     TraceeExited(libc::pid_t),
