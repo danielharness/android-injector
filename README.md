@@ -13,10 +13,10 @@ fn main() {
     let pid = Pid::from_raw(1234);
     let shellcode = fs::read("shellcode.bin").unwrap();
 
-    // Blocks the process while the shellcode runs
+    // Blocks the injectee while the shellcode runs
     android_injector::inject_shellcode_blocking(pid, &shellcode, None).unwrap();
 
-    // Doesn't block the process while the shellcode runs
+    // Doesn't block the injectee while the shellcode runs
     android_injector::inject_shellcode_parallel(pid, &shellcode, None).unwrap();
 }
 ```

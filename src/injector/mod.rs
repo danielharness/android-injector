@@ -1,10 +1,10 @@
 use nix::unistd::Pid;
 use tracing::{info, info_span};
 
+use crate::{Error, ptrace};
 use crate::injector::cross_arch::build_parallelizer_argument;
 use crate::process_trace::TracedProcess;
 use crate::Result;
-use crate::{ptrace, Error};
 
 mod arm32;
 mod arm64;
@@ -62,6 +62,7 @@ pub fn inject_shellcode_parallel(
     inject_shellcode_impl(pid, payload_shellcode, payload_argument, true).map(|_| ())
 }
 
+/// See [`inject_shellcode_blocking`] and [`inject_shellcode_parallel`].
 fn inject_shellcode_impl(
     pid: Pid,
     payload_shellcode: &[u8],
