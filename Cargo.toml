@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 libc = "0.2.155"
 thiserror = "1.0.61"
+errno = "0.3.9"
+procfs = "0.16.0"
+scopeguard = "1.2.0"
