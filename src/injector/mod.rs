@@ -1,10 +1,10 @@
 use nix::unistd::Pid;
 use tracing::{info, info_span};
 
-use crate::{Error, ptrace};
 use crate::injector::cross_arch::build_parallelizer_argument;
 use crate::process_trace::TracedProcess;
 use crate::Result;
+use crate::{ptrace, Error};
 
 mod arm32;
 mod arm64;

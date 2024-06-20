@@ -4,16 +4,16 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 use std::slice::from_raw_parts;
 
-use elf::ElfStream;
 use elf::endian::NativeEndian;
+use elf::ElfStream;
 use nix::sys::signal;
 use nix::sys::signal::Signal;
 use nix::unistd::Pid;
 use procfs::process::MMPermissions;
 
-use crate::{Error, Result};
 use crate::injector::parallelizer_shellcode_api;
 use crate::process_trace::{Stopped, TracedProcess};
+use crate::{Error, Result};
 
 /// Interrupts the current system call a traced process is executing.
 pub fn interrupt_syscall(

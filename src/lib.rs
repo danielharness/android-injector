@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use nix::sys::wait::WaitStatus;
 use nix::unistd::Pid;
 
-// TODO: Use `injector:*`
+pub use injector::*;
 
 pub mod injector;
 pub mod process_trace;

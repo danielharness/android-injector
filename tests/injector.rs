@@ -61,7 +61,7 @@ fn inject_shellcode_blocking_with_argument() {
         &shellcode::RETURN_ARG_PLUS_1234,
         Some(&arg.to_le_bytes()),
     )
-        .unwrap();
+    .unwrap();
     assert_eq!(ret, 1234 + arg);
 }
 
@@ -101,7 +101,7 @@ fn inject_shellcode_parallel_with_argument() {
         &shellcode::CHDIR_TO_ARG_THEN_SLEEP_IN_LOOP,
         Some(arg),
     )
-        .unwrap();
+    .unwrap();
     // Wait for injection to finish
     thread::sleep(Duration::from_millis(200));
 

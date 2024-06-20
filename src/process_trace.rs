@@ -11,7 +11,7 @@ use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::Pid;
 use scopeguard::{guard, ScopeGuard};
 
-use crate::{Error, ptrace, Result};
+use crate::{ptrace, Error, Result};
 
 /// States of a process traced with `ptrace`.
 pub trait TracedProcessState {}
@@ -77,8 +77,8 @@ impl TracedProcess<Running> {
             detach_guard: guard(pid, |pid| ptrace::detach(pid).unwrap_or(())),
             state: Default::default(),
         }
-            .wait()?
-            .0;
+        .wait()?
+        .0;
 
         ptrace::set_options(pid, libc::PTRACE_O_TRACESYSGOOD)?;
 

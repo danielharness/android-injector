@@ -3,7 +3,7 @@
 //! lackluster support for android, and doesn't support cross-architecture (e.g. arm32 -> arm64)
 //! tracing.
 
-use std::mem::{MaybeUninit, size_of, size_of_val};
+use std::mem::{size_of, size_of_val, MaybeUninit};
 use std::ptr;
 
 use nix::sys::signal::Signal;

@@ -1,9 +1,9 @@
 use nix::sys::signal;
 use nix::sys::signal::Signal;
-use procfs::process::{MMapPath, MMPermissions};
+use procfs::process::{MMPermissions, MMapPath};
 
-use android_injector::{Error, ptrace};
 use android_injector::process_trace::{RemoteAddress, Stopped, TracedProcess};
+use android_injector::{ptrace, Error};
 use common::child_factory::fork_sleeper;
 
 mod common;

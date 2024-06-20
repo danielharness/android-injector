@@ -2,10 +2,10 @@ use std::num::NonZeroUsize;
 
 use tracing::info;
 
-use crate::{Error, Result};
 use crate::injector::cross_arch::{interrupt_syscall, round_up, wait_for_breakpoint};
 use crate::process_trace::{RemoteAddress, Stopped, TracedProcess};
 use crate::ptrace::{Arm64UserRegs, UserRegs};
+use crate::{Error, Result};
 
 pub const PARALLELIZER_SHELLCODE: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/shellcode_arm64.bin"));
