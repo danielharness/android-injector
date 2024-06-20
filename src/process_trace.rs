@@ -5,6 +5,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 
 use nix::errno::Errno;
+use nix::sys::signal::Signal;
 use nix::sys::wait;
 use nix::unistd::Pid;
 use scopeguard::{guard, ScopeGuard};
@@ -75,9 +76,36 @@ impl TracedProcess<Running> {
         Ok(traced_process)
     }
 
+    /// Blocks until tracee is stopped by a signal.
+    /// If tracee exits, or if the wait fails, an error is returned.
+    pub fn wait_signal_stop(self) -> Result<(TracedProcess<Stopped>, Signal)> {
+        let (mut traced_process, mut wait_status) = self.wait()?;
+        loop {
+            (traced_process, wait_status) = match wait_status {
+                wait::WaitStatus::Stopped(_, signal) => break Ok((traced_process, signal)),
+                _ => traced_process.cont(None)?.wait()?,
+            }
+        }
+    }
+
+    /// Blocks until tracee is stopped at entry or exit from a system call.
+    /// If tracee exits, or if the wait fails, an error is returned.
+    pub fn wait_syscall_stop(self) -> Result<TracedProcess<Stopped>> {
+        let (mut traced_process, mut wait_status) = self.wait()?;
+        loop {
+            (traced_process, wait_status) = match wait_status {
+                wait::WaitStatus::Stopped(_, signal) => {
+                    traced_process.cont_syscall(Some(signal))?.wait()?
+                }
+                wait::WaitStatus::PtraceSyscall(..) => break Ok(traced_process),
+                _ => traced_process.cont_syscall(None)?.wait()?,
+            }
+        }
+    }
+
     /// Blocks until tracee is stopped, and returns the reason for stopping.
     /// If tracee exits, or if the wait fails, an error is returned.
-    fn wait(self) -> Result<(TracedProcess<Stopped>, wait::WaitStatus)> {
+    pub fn wait(self) -> Result<(TracedProcess<Stopped>, wait::WaitStatus)> {
         // Loop to handle `EINTR`.
         let res = loop {
             match wait::waitpid(Some(self.pid), None) {
@@ -115,6 +143,31 @@ impl TracedProcess<Stopped> {
         // Cancel detach guard
         ScopeGuard::into_inner(self.detach_guard);
         res
+    }
+
+    /// Restarts tracee, letting it continue execution normally.
+    /// Optionally delivers given signal to tracee. The signal must be the one that caused tracee to
+    /// stop, or else it may be ignored and not delivered.
+    pub fn cont(self, signal: Option<Signal>) -> Result<TracedProcess<Running>> {
+        ptrace::cont(self.pid, signal)?;
+        Ok(TracedProcess::<Running> {
+            pid: self.pid,
+            detach_guard: self.detach_guard,
+            state: Default::default(),
+        })
+    }
+
+    /// Restarts tracee, letting it continue execution normally.
+    /// It will automatically be stopped at the next entry to or exit from a system call.
+    /// Optionally delivers given signal to tracee. The signal must be the one that caused tracee to
+    /// stop, or else it may be ignored and not delivered.
+    pub fn cont_syscall(self, signal: Option<Signal>) -> Result<TracedProcess<Running>> {
+        ptrace::syscall(self.pid, signal)?;
+        Ok(TracedProcess::<Running> {
+            pid: self.pid,
+            detach_guard: self.detach_guard,
+            state: Default::default(),
+        })
     }
 
     /// Reads `len` bytes from given address in tracee.
@@ -197,7 +250,7 @@ mod tests {
                 guard(child_pid, |child_pid| {
                     // SAFETY: There are no preconditions for the safety of this call.
                     unsafe { libc::kill(child_pid.into(), libc::SIGKILL) };
-                    wait::waitpid(child_pid, None).unwrap();
+                    wait::waitpid(child_pid, None).ok();
                 })
             }
         }
@@ -307,5 +360,58 @@ mod tests {
         }
 
         traced_process.detach().unwrap();
+    }
+
+    #[test]
+    fn trace_signal() {
+        let child = fork_sleeper();
+        let traced_process = TracedProcess::attach(*child).unwrap().cont(None).unwrap();
+        // SAFETY: There are no preconditions for the safety of this call.
+        unsafe { libc::kill(child.as_raw(), libc::SIGUSR1) };
+        let (traced_process, signal) = traced_process.wait_signal_stop().unwrap();
+        assert_eq!(signal as i32, libc::SIGUSR1);
+        traced_process.detach().unwrap();
+    }
+
+    #[test]
+    fn trace_syscall() {
+        let get_syscall =
+            |traced_process: &TracedProcess<Stopped>| match traced_process.get_regs().unwrap() {
+                ptrace::UserRegs::Arm32(regs) => regs.regs[7] as libc::c_long,
+                ptrace::UserRegs::Arm64(regs) => regs.regs[8] as libc::c_long,
+            };
+
+        let child = fork_sleeper();
+        let traced_process = TracedProcess::attach(*child)
+            .unwrap()
+            .cont_syscall(None)
+            .unwrap()
+            .wait_syscall_stop()
+            .unwrap();
+        let enter_syscall = get_syscall(&traced_process);
+        assert!(enter_syscall == libc::SYS_nanosleep || enter_syscall == libc::SYS_restart_syscall);
+
+        let traced_process = traced_process
+            .cont_syscall(None)
+            .unwrap()
+            .wait_syscall_stop()
+            .unwrap();
+        let exit_syscall = get_syscall(&traced_process);
+        assert_eq!(exit_syscall, enter_syscall);
+
+        traced_process.detach().unwrap();
+    }
+
+    #[test]
+    fn wait_on_exited_tracee() {
+        let child = fork_sleeper();
+        let traced_process = TracedProcess::attach(*child).unwrap().cont(None).unwrap();
+        // SAFETY: There are no preconditions for the safety of this call.
+        unsafe { libc::kill(child.as_raw(), libc::SIGKILL) };
+        let wait_res = traced_process.wait_signal_stop();
+        match wait_res {
+            Err(Error::TraceeExited(..)) => (),
+            _ => panic!("`wait` did not error properly after tracee exited"),
+        }
     }
 }

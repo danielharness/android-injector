@@ -6,6 +6,7 @@
 use std::mem::{MaybeUninit, size_of, size_of_val};
 use std::ptr;
 
+use nix::sys::signal::Signal;
 use nix::unistd::Pid;
 
 use crate::{Error, Result};
@@ -105,18 +106,32 @@ pub fn set_options(pid: Pid, options: i32) -> Result<()> {
 }
 
 /// Restarts a tracee.
-pub fn cont(pid: Pid, signal: i32) -> Result<()> {
+pub fn cont(pid: Pid, signal: Option<Signal>) -> Result<()> {
     // SAFETY: There are no preconditions for the safety of this call.
-    unsafe { ptrace_other(Request::Cont, pid, ptr::null_mut(), signal as *mut _) }?;
+    unsafe {
+        ptrace_other(
+            Request::Cont,
+            pid,
+            ptr::null_mut(),
+            signal.map(|s| s as i32).unwrap_or(0) as *mut _,
+        )
+    }?;
     Ok(())
 }
 
 /// Restarts a tracee
 /// It will automatically be stopped at the next entry to or exit from a system call.
 /// Restarts a tracee.
-pub fn syscall(pid: Pid, signal: i32) -> Result<()> {
+pub fn syscall(pid: Pid, signal: Option<Signal>) -> Result<()> {
     // SAFETY: There are no preconditions for the safety of this call.
-    unsafe { ptrace_other(Request::Syscall, pid, ptr::null_mut(), signal as *mut _) }?;
+    unsafe {
+        ptrace_other(
+            Request::Syscall,
+            pid,
+            ptr::null_mut(),
+            signal.map(|s| s as i32).unwrap_or(0) as *mut _,
+        )
+    }?;
     Ok(())
 }
 
