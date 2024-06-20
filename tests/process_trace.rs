@@ -1,8 +1,8 @@
 use procfs::process::{MMapPath, MMPermissions};
 
+use android_injector::{Error, ptrace};
+use android_injector::process_trace::{RemoteAddress, Stopped, TracedProcess};
 use common::child_factory::fork_sleeper;
-use injector::{Error, ptrace};
-use injector::process_trace::{RemoteAddress, Stopped, TracedProcess};
 
 mod common;
 
