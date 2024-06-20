@@ -186,7 +186,7 @@ impl TracedProcess<Stopped> {
         let mut regs = MaybeUninit::<PtraceRegSetUserRegs>::uninit();
         let mut iovec = libc::iovec {
             iov_base: regs.as_mut_ptr() as *mut libc::c_void,
-            iov_len: size_of_val(&regs),
+            iov_len: size_of_val(&regs) as libc::size_t,
         };
         // SAFETY: At most `iovec.iov_len` bytes will be written to the address of `regs`.
         // Since `iovec.iov_len` is set to the size of `regs`, the write is guaranteed to not
@@ -225,7 +225,7 @@ impl TracedProcess<Stopped> {
         };
         let mut iovec = libc::iovec {
             iov_base: (&mut regs as *mut _) as *mut libc::c_void,
-            iov_len: regs_size,
+            iov_len: regs_size as libc::size_t,
         };
         // SAFETY: At most `iovec.iov_len` bytes will be read from the address of `regs`.
         // Since `iovec.iov_len` is set to the size of the initialized field in the union `regs`,

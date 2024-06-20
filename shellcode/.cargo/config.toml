@@ -1,0 +1,19 @@
+[build]
+
+[target.armv7a-none-eabi]
+rustflags = [
+    "-C", "link-arg=-nostdlib",
+    "-C", "link-arg=-Tshellcode.ld",
+    "-C", "link-arg=--build-id=none",
+    "-C", "link-arg=-static",
+    "-C", "relocation-model=pic",
+]
+
+[target.aarch64-unknown-none]
+rustflags = [
+    "-C", "link-arg=-nostdlib",
+    "-C", "link-arg=-Tshellcode.ld",
+    "-C", "link-arg=--build-id=none",
+    "-C", "link-arg=-static",
+    "-C", "relocation-model=pic",
+]

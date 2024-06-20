@@ -18,3 +18,8 @@ pub enum InjectorError {
     #[error("Tracee pid {0} has unsupported architecture")]
     UnsupportedTraceeArchitecture(libc::pid_t),
 }
+
+const STAGEONE_SHELLCODE_ARM32: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/shellcode_arm32.bin"));
+const STAGEONE_SHELLCODE_ARM64: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/shellcode_arm64.bin"));
