@@ -5,8 +5,12 @@
     any(target_arch = "arm", target_arch = "aarch64")
 ))]
 
+use std::path::PathBuf;
+
 use nix::sys::wait::WaitStatus;
 use nix::unistd::Pid;
+
+// TODO: Use `injector:*`
 
 pub mod injector;
 pub mod process_trace;
@@ -28,4 +32,16 @@ pub enum Error {
     TraceeSyscallFailed(Pid, i64),
     #[error("Tracee pid {0} has unsupported architecture")]
     UnsupportedTraceeArchitecture(Pid),
+    #[error("Parallelizer shellcode for tracee pid {0} returned unsuccessfully with code: {1}")]
+    ParallelizerShellcodeFailed(Pid, u32),
+    #[error("Error while interacting with file \"{1}\": `{0}`")]
+    Filesystem(#[source] std::io::Error, PathBuf),
+    #[error("Error while parsing elf \"{1}\": `{0}`")]
+    ElfParse(#[source] elf::ParseError, PathBuf),
+    #[error("Elf \"{0}\" is missing symbol \"{1}\"")]
+    ElfMissingSymbol(PathBuf, String),
+    #[error("Error while parsing procfs of tracee pid {1}: `{0}`")]
+    ProcfsParse(#[source] procfs::ProcError, Pid),
+    #[error("Failed to find linker of tracee pid {0}")]
+    LinkerNotFound(Pid),
 }

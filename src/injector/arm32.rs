@@ -1,19 +1,26 @@
+use std::num::NonZeroUsize;
+
 use tracing::info;
 
 use crate::{Error, Result};
-use crate::injector::cross_arch::{interrupt_syscall, wait_for_breakpoint};
+use crate::injector::cross_arch::{interrupt_syscall, round_up, wait_for_breakpoint};
 use crate::process_trace::{RemoteAddress, Stopped, TracedProcess};
 use crate::ptrace::{Arm32UserRegs, UserRegs};
 
-const STAGEONE_SHELLCODE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/shellcode_arm32.bin"));
+pub const PARALLELIZER_SHELLCODE: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/shellcode_arm32.bin"));
 
+const ALIGNMENT: NonZeroUsize = match NonZeroUsize::new(16) {
+    Some(n) => n,
+    None => [][0],
+};
 const BREAKPOINT_INSTRUCTION: [u8; 4] = 0xe7f001f0u32.to_le_bytes();
 const SYSCALL_INSTRUCTION: [u8; 4] = 0xef000000u32.to_le_bytes();
 
 const SYS_MMAP2: i32 = 192;
 
 /// Architecture-specific implementation. See documentation of
-/// [`injector::inject_shellcode_blocking`].
+/// [`crate::injector::inject_shellcode_blocking`].
 pub fn inject_shellcode_blocking(
     mut traced_process: TracedProcess<Stopped>,
     payload_shellcode: &[u8],
@@ -32,8 +39,15 @@ pub fn inject_shellcode_blocking(
         traced_process = interrupt_syscall(traced_process)?;
     }
 
+    // Round up lengths so that injected code is properly aligned
+    let payload_shellcode_aligned_len = round_up(payload_shellcode.len(), ALIGNMENT);
+    let breakpoint_instruction_aligned_len = round_up(BREAKPOINT_INSTRUCTION.len(), ALIGNMENT);
+    let payload_argument_aligned_len = round_up(payload_argument.len(), ALIGNMENT);
+
     // Call `mmap`
-    let map_len = payload_shellcode.len() + BREAKPOINT_INSTRUCTION.len() + payload_argument.len();
+    let map_len = payload_shellcode_aligned_len
+        + breakpoint_instruction_aligned_len
+        + payload_argument_aligned_len;
     info!(
         len = map_len,
         prot = "PROT_READ | PROT_EXEC",
@@ -53,20 +67,19 @@ pub fn inject_shellcode_blocking(
     info!(ret = mmap_ret, "tracee returned from `mmap` successfully");
     let payload_shellcode_address = RemoteAddress((mmap_ret as u32) as u64);
     let breakpoint_instruction_address =
-        RemoteAddress(payload_shellcode_address.0 + (payload_shellcode.len() as u64));
+        RemoteAddress(payload_shellcode_address.0 + (payload_shellcode_aligned_len as u64));
     let payload_argument_address = RemoteAddress(
-        payload_shellcode_address.0
-            + ((payload_shellcode.len() + BREAKPOINT_INSTRUCTION.len()) as u64),
+        breakpoint_instruction_address.0 + (breakpoint_instruction_aligned_len as u64),
     );
 
     // Copy shellcode and metadata to mapped address
     info!(
         ?payload_shellcode_address,
-        payload_shellcode_len = payload_shellcode.len(),
+        payload_shellcode_len = payload_shellcode_aligned_len,
         ?breakpoint_instruction_address,
-        breakpoint_instruction_len = BREAKPOINT_INSTRUCTION.len(),
+        breakpoint_instruction_len = breakpoint_instruction_aligned_len,
         ?payload_argument_address,
-        payload_argument_len = payload_argument.len(),
+        payload_argument_len = payload_argument_aligned_len,
         "copying payload to tracee"
     );
     traced_process.write_memory(payload_shellcode_address, payload_shellcode)?;

@@ -1,4 +1,4 @@
-ENTRY(_start);
+ENTRY(start);
 
 SECTIONS
 {
@@ -6,7 +6,7 @@ SECTIONS
 
     .text :
     {
-        *(.text.prologue)
+        *(.entry)
         *(.text)
         *(.text.*)
     }
