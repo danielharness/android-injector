@@ -1,3 +1,5 @@
+use nix::sys::signal;
+use nix::sys::signal::Signal;
 use procfs::process::{MMapPath, MMPermissions};
 
 use android_injector::{Error, ptrace};
@@ -116,10 +118,9 @@ fn set_registers() {
 fn trace_signal() {
     let child = fork_sleeper();
     let traced_process = TracedProcess::attach(*child).unwrap().cont(None).unwrap();
-    // SAFETY: There are no preconditions for the safety of this call.
-    unsafe { libc::kill(child.as_raw(), libc::SIGUSR1) };
+    signal::kill(*child, Signal::SIGUSR1).unwrap();
     let (traced_process, signal) = traced_process.wait_signal_stop().unwrap();
-    assert_eq!(signal as i32, libc::SIGUSR1);
+    assert_eq!(signal, Signal::SIGUSR1);
     traced_process.detach().unwrap();
 }
 
@@ -156,8 +157,7 @@ fn trace_syscall() {
 fn wait_on_exited_tracee() {
     let child = fork_sleeper();
     let traced_process = TracedProcess::attach(*child).unwrap().cont(None).unwrap();
-    // SAFETY: There are no preconditions for the safety of this call.
-    unsafe { libc::kill(child.as_raw(), libc::SIGKILL) };
+    signal::kill(*child, Signal::SIGKILL).unwrap();
     let wait_res = traced_process.wait_signal_stop();
     match wait_res {
         Err(Error::TraceeExited(..)) => (),

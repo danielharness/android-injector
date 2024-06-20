@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use nix::errno::Errno;
 use nix::sys::signal::Signal;
-use nix::sys::wait;
+use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::Pid;
 use scopeguard::{guard, ScopeGuard};
 
@@ -91,7 +91,7 @@ impl TracedProcess<Running> {
         let (mut traced_process, mut wait_status) = self.wait()?;
         loop {
             (traced_process, wait_status) = match wait_status {
-                wait::WaitStatus::Stopped(_, signal) => break Ok((traced_process, signal)),
+                WaitStatus::Stopped(_, signal) => break Ok((traced_process, signal)),
                 _ => traced_process.cont(None)?.wait()?,
             }
         }
@@ -103,10 +103,10 @@ impl TracedProcess<Running> {
         let (mut traced_process, mut wait_status) = self.wait()?;
         loop {
             (traced_process, wait_status) = match wait_status {
-                wait::WaitStatus::Stopped(_, signal) => {
+                WaitStatus::Stopped(_, signal) => {
                     traced_process.cont_syscall(Some(signal))?.wait()?
                 }
-                wait::WaitStatus::PtraceSyscall(..) => break Ok(traced_process),
+                WaitStatus::PtraceSyscall(..) => break Ok(traced_process),
                 _ => traced_process.cont_syscall(None)?.wait()?,
             }
         }
@@ -114,18 +114,17 @@ impl TracedProcess<Running> {
 
     /// Blocks until tracee is stopped, and returns the reason for stopping.
     /// If tracee exits, or if the wait fails, an error is returned.
-    pub fn wait(self) -> Result<(TracedProcess<Stopped>, wait::WaitStatus)> {
+    pub fn wait(self) -> Result<(TracedProcess<Stopped>, WaitStatus)> {
         // Loop to handle `EINTR`.
         let res = loop {
-            match wait::waitpid(Some(self.pid), None) {
+            match waitpid(Some(self.pid), None) {
                 Err(err) if err == Errno::EINTR => continue,
                 res => break res,
             }
         };
 
         match res {
-            Ok(status @ wait::WaitStatus::Exited(..))
-            | Ok(status @ wait::WaitStatus::Signaled(..)) => {
+            Ok(status @ WaitStatus::Exited(..)) | Ok(status @ WaitStatus::Signaled(..)) => {
                 // Cancel detach guard since tracee already exited
                 ScopeGuard::into_inner(self.detach_guard);
                 Err(Error::TraceeExited(self.pid, status))
