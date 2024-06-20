@@ -15,6 +15,6 @@ pub enum InjectorError {
     TraceeMemory(#[source] std::io::Error, libc::pid_t),
     #[error("Tracee pid {0} exited during `ptrace`")] // TODO: Include `ExitReason`
     TraceeExited(libc::pid_t),
-    #[error("Unknown error")]
-    Unknown,
+    #[error("Tracee pid {0} has unsupported architecture")]
+    UnsupportedTraceeArchitecture(libc::pid_t),
 }
