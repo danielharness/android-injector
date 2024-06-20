@@ -1,4 +1,4 @@
-//! An injector for android that supports arm32 and arm46.
+//! A shellcode injector for android that supports arm32 and arm46.
 
 #![cfg(all(
     target_os = "android",
